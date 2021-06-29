@@ -9,7 +9,7 @@ spec:
   - name: url
     value: https://github.com/faust64/tekton-demo.git
   - name: revision
-    value: master
+    value: 151d066ee4cdfa1eabb527d09e2e112317de7acf
 ---
 apiVersion: tekton.dev/v1alpha1
 kind: PipelineResource
@@ -19,7 +19,7 @@ spec:
   type: image
   params:
   - name: url
-    value: registry.registry.svc.cluster.local:5000/test-tekton/tekton-demo:randomgitref
+    value: registry.registry.svc.cluster.local:5000/test-tekton/tekton-demo:151d066ee4cdfa1eabb527d09e2e112317de7acf
 ---
 apiVersion: tekton.dev/v1alpha1
 kind: PipelineResource
@@ -34,13 +34,13 @@ spec:
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: build-pipeline-1
+  generateName: build-pipeline-
 spec:
   params:
   - name: identifier
-    value: demo
+    value: demo-151d066ee4cdfa1eabb527d09e2e112317de7acf
   - name: cins
-    value: demo-ci
+    value: test-tekton
   pipelineRef:
     name: ci-docker-build
   resources:
@@ -54,5 +54,6 @@ spec:
     resourceRef:
       name: test-ci-target-image
   serviceAccountName: test-tkn
-  timeouts:
-    pipeline: 2h0m0s
+  timeout: 2h0m0s
+#  timeouts:
+#    pipeline: 2h0m0s

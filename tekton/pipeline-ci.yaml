@@ -43,7 +43,7 @@ spec:
   - name: deploy
     params:
     - name: action
-      value: create
+      value: apply
     - name: identifier
       value: $(params.identifier)
     - name: namespace
@@ -57,7 +57,7 @@ spec:
     runAfter:
     - build
     taskRef:
-      name: deploy
+      name: kubectl
   - name: imagescan
     resources:
       inputs:
@@ -89,6 +89,7 @@ spec:
       inputs:
       - name: srcimage
         resource: ci-image
+      outputs:
       - name: dstimage
         resource: target-image
     runAfter:
@@ -111,4 +112,4 @@ spec:
       - name: image
         resource: ci-image
     taskRef:
-      name: deploy
+      name: kubectl

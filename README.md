@@ -73,6 +73,26 @@ and container images registry URL using your own fork and registry):
 $ kubectl create -n test-tekton tekton/pipelinerun-docker.yaml
 ```
 
+If all goes well, we should see the various steps completing without returning
+any error, and the PipelineRun acknowledge job was successful:
+
+```sh
+$ kubectl get pods -n test-tekton
+NAME                                                             READY   STATUS        RESTARTS   AGE
+build-pipeline-6wnb8-build-6bpn6-pod-f4svw                       0/6     Completed     0          114s
+build-pipeline-6wnb8-codescan-wskc7-pod-5bwk8                    0/2     Completed     0          114s
+build-pipeline-6wnb8-deploy-pz9gq-pod-sjpnw                      0/2     Completed     0          77s
+build-pipeline-6wnb8-imagescan-vf5zr-pod-cb2w5                   0/1     Completed     0          77s
+build-pipeline-6wnb8-retag-4r6cz-pod-f8zft                       0/3     Completed     0          36s
+build-pipeline-6wnb8-teardown-ccr4t-pod-spxds                    0/2     Completed     0          21s
+build-pipeline-6wnb8-test-nnp6p-pod-vv5px                        0/2     Completed     0          52s
+demo-151d066ee4cdfa1eabb527d09e2e112317de7acf-5984487669-tjsnh   0/1     Terminating   0          55s
+el-github-listener-64d656fccf-p55xv                              1/1     Running       0          68m
+$ kubectl get pipelinerun -n test-tekton
+NAME                   SUCCEEDED   REASON      STARTTIME   COMPLETIONTIME
+build-pipeline-6wnb8   True        Succeeded   2m28s       44s
+```
+
 ## Start Jobs Automatically
 
 Configure GitHub Webhook on your fork of this repository. Make sure your hook
@@ -87,3 +107,16 @@ should receive a notification, triggering creation for some PipelineResources
 and a PipelineRun, that would scan your code, build an image, deploy a copy
 locally and run integration tests, scanning the image, re-tag it if all went
 well then terminate the demo deployment. Hopefully.
+
+## Going Further
+
+The step running CI tests could submit its results to some SonarQube server (or
+equivalent), having such a deployment available.
+
+The step scanning image downloads its database for each job. One may want to
+deploy a Trivy server, caching that database locally and serving it to tekton
+scan-image jobs pod.
+
+We could include some additional tasks sample, building binaries and pushing
+them to some artifactory (eg: Nexus, jFrog Artifactory, ...). While give an
+example of building container images based on such assets (?)

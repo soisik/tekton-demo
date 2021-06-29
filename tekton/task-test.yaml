@@ -17,7 +17,7 @@ spec:
     type: string
     default: demo
   - name: image
-    default: busybox
+    default: docker.io/alpine
     description: Image with proper runtime to execute CI tests
     type: string
   - name: namespace
@@ -43,6 +43,10 @@ spec:
           echo Could not find Makefile test rule, required running tests
           exit 1
       fi
+      if ! apk add make curl; then
+          echo Failed installing test dependencies
+          exit 1
+      fi
       cpt=0
       if test "$(params.retry)" -ge 0; then
           retry=$(params.retry)
@@ -55,18 +59,22 @@ spec:
           wait=60
       fi
 
-      while test $cpt -lt $retry
+      while true
       do
-          if ! make test \
+          echo "== Starting test $cpt out of $retry =="
+          if make test \
                   APP_HOST=$(params.identifier).$(params.namespace).svc.cluster.local \
                   APP_PORT=8080 \
                   APP_PROTO=http; then
-              echo FATAL
-              exit 1
+              break
           fi
+          echo FAIL
           cpt=`expr $cpt + 1`
           if test "$cpt" -lt "$retry"; then
               sleep $wait
+          else
+              echo Bailing out ...
+              exit 1
           fi
       done
 
@@ -77,4 +85,6 @@ spec:
     - /bin/sh
     image: $(params.image)
     name: test
+    securityContext:
+      privileged: true
     workingDir: /workspace/source

@@ -23,21 +23,24 @@ spec:
   - args:
     - -c
     - |
-        src="$(inputs.resources.srcimage.url)
-        dst="$(outputs.resources.dstimage.url)
+        set -x
+
+        src="$(inputs.resources.srcimage.url)"
+        dst="$(outputs.resources.dstimage.url)"
         dstauth=
         srcauth=
         if test "$REG_USER" -a "$REG_TOKEN"; then
             dstauth="--src-creds $REG_USER:$REG_TOKEN"
             srcauth="--src-creds $REG_USER:$REG_TOKEN"
         fi
-        if test "$(inputs.params.tlsverify)" = true; then
+        if test "$(inputs.params.TLSVERIFY)" = true; then
             dstproto="--dest-tls-verify=true"
             srcproto="--src-tls-verify=true"
         else
             dstproto="--dest-tls-verify=false"
             srcproto="--src-tls-verify=false"
         fi
+
         skopeo copy $srcproto $dstproto $srcauth $dstauth docker://$src docker://$dst
     command:
     - /bin/sh

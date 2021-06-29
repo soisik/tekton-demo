@@ -24,25 +24,22 @@ spec:
       echo "==== Scanning $(resources.inputs.image.url) ===="
       if test "$TRIVY_URL"; then
           if test "$TRIVY_TOKEN"; then
-              if ! trivy client --remote "$TRIVY_URL" --token "$TRIVY_TOKEN" \
-                       --quiet --no-progress -f json -o scan-output \
+              if ! trivy --remote "$TRIVY_URL" --token "$TRIVY_TOKEN" -f json -o scan-output \
                        "$(resources.inputs.image.url)"; then
                   echo "==== Returned $? ===="
               fi
           else
               unset TRIVY_TOKEN
-              if ! trivy client --remote "$TRIVY_URL" \
-                       --quiet --no-progress -f json -o scan-output \
+              if ! trivy --remote "$TRIVY_URL" -f json -o scan-output \
                        "$(resources.inputs.image.url)"; then
                   echo "==== Returned $? ===="
               fi
           fi
       else
           unset TRIVY_TOKEN
-            if ! trivy client --quiet --no-progress -f json -o scan-output \
-                   "$(resources.inputs.image.url)"; then
-                echo "==== Returned $? ===="
-            fi
+          if ! trivy -f json -o scan-output "$(resources.inputs.image.url)"; then
+              echo "==== Returned $? ===="
+          fi
       fi
       if ! test -s scan-output; then
           echo "==== Failed scanning image ===="
