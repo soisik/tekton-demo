@@ -1,0 +1,60 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: retag
+spec:
+  params:
+  - default: "true"
+    description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+    name: TLSVERIFY
+    type: string
+  - name: REGSECRET
+    description: Target Secret
+    type: string
+    default: "nonexistant"
+  resources:
+    inputs:
+    - name: srcimage
+      type: image
+    outputs:
+    - name: dstimage
+      type: image
+  steps:
+  - args:
+    - -c
+    - |
+        src="$(inputs.resources.srcimage.url)
+        dst="$(outputs.resources.dstimage.url)
+        dstauth=
+        srcauth=
+        if test "$REG_USER" -a "$REG_TOKEN"; then
+            dstauth="--src-creds $REG_USER:$REG_TOKEN"
+            srcauth="--src-creds $REG_USER:$REG_TOKEN"
+        fi
+        if test "$(inputs.params.tlsverify)" = true; then
+            dstproto="--dest-tls-verify=true"
+            srcproto="--src-tls-verify=true"
+        else
+            dstproto="--dest-tls-verify=false"
+            srcproto="--src-tls-verify=false"
+        fi
+        skopeo copy $srcproto $dstproto $srcauth $dstauth docker://$src docker://$dst
+    command:
+    - /bin/sh
+    env:
+    - name: REG_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: "$(inputs.params.REGSECRET)"
+          key: docker-token
+          optional: true
+    - name: REG_USER
+      valueFrom:
+        secretKeyRef:
+          name: "$(inputs.params.REGSECRET)"
+          key: docker-user
+          optional: true
+    name: retag
+    image: docker.io/ananace/skopeo:latest
+    securityContext:
+      privileged: true

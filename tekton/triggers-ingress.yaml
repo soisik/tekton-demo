@@ -1,0 +1,21 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-eventlistener
+spec:
+  rules:
+  - host: github-ci-el.example.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: el-github-listener
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - github-ci-el.example.com
+    secretName: tekton-triggers-tls

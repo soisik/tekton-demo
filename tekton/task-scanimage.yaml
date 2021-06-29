@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: trivy
+spec:
+  params:
+  - default: ""
+    description: Trivy Server URL - defaults to standalone
+    name: trivyurl
+    type: string
+  resources:
+    inputs:
+    - name: image
+      type: image
+  steps:
+  - args:
+    - -c
+    - |
+      echo "==== Installing dependencies ===="
+      if ! apk add jq; then
+          echo failed installing jq
+          exit 1
+      fi
+      echo "==== Scanning $(resources.inputs.image.url) ===="
+      if test "$TRIVY_URL"; then
+          if test "$TRIVY_TOKEN"; then
+              if ! trivy client --remote "$TRIVY_URL" --token "$TRIVY_TOKEN" \
+                       --quiet --no-progress -f json -o scan-output \
+                       "$(resources.inputs.image.url)"; then
+                  echo "==== Returned $? ===="
+              fi
+          else
+              unset TRIVY_TOKEN
+              if ! trivy client --remote "$TRIVY_URL" \
+                       --quiet --no-progress -f json -o scan-output \
+                       "$(resources.inputs.image.url)"; then
+                  echo "==== Returned $? ===="
+              fi
+          fi
+      else
+          unset TRIVY_TOKEN
+            if ! trivy client --quiet --no-progress -f json -o scan-output \
+                   "$(resources.inputs.image.url)"; then
+                echo "==== Returned $? ===="
+            fi
+      fi
+      if ! test -s scan-output; then
+          echo "==== Failed scanning image ===="
+          rm scan-output
+          exit 1
+      fi
+      echo "==== Done scanning - parsing output ===="
+      for level in CRITICAL HIGH LOW MEDIUM UNKNOWN
+      do
+          echo "==== Listing criticity '$level' ===="
+          cat scan-output | jq ".[].Vulnerabilities[] | select(.Severity == '$level')"
+          count=$(cat scan-output | jq "(.[].Vulnerabilities[] | select(.Severity == '$level')).VulnerabilityID" | sort -u | awk 'END{print NR}')
+          eval count$level=$count
+      done
+      rm -f scan-output
+      if ! test "$countCRITICAL" = 0; then
+          score=CRITICAL
+      elif ! test "$countHIGH" = 0; then
+          score=WARNING
+      else
+          score=OK
+      fi
+      echo =============================================
+      echo =============================================
+      echo =============================================
+      echo "[$score] $(resources.inputs.image.url)"
+      echo ""
+      echo " * critical: $countCRITICAL"
+      echo " * high: $countHIGH"
+      echo " * low: $countLOW"
+      echo " * medium: $countMEDIUM"
+      echo " * unknown: $countUNKNOWN"
+    command:
+    - /bin/sh
+    env:
+    - name: TRIVY_TOKEN
+      valueFrom:
+        secretKeyRef:
+          key: admin-password
+          name: trivy-kube
+          optional: true
+    - name: TRIVY_URL
+      value: "$(params.trivyurl)"
+    image: docker.io/aquasec/trivy:0.18.3
+    name: scan
+    securityContext:
+      privileged: true
+    workingDir: /workspace/source

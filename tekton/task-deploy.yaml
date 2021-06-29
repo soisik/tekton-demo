@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kubectl
+spec:
+  description: Applies, Creates or Removes Kubernetes objects
+  results:
+  - name: output-result
+    description: some result can be emitted if someone wants to.
+  resources:
+    inputs:
+    - name: source
+      type: git
+    - name: image
+      type: image
+  params:
+  - name: action
+    description: Kubernetes Verb
+    type: string
+    default: create
+  - name: assets
+    description: Kubernetes Object(s)
+    type: string
+    default: deploy/demo.yaml
+  - name: identifier
+    description: Kubernetes resources Identifier
+    type: string
+    default: demo
+  - name: namespace
+    description: Kubernetes Namespace
+    type: string
+    default: demo-ci
+  - name: image
+    default: gcr.io/cloud-builders/kubectl@sha256:8ab94be8b2b4f3d117f02d868b39540fddd225447abf4014f7ba4765cb39f753 #image is huge
+    description: Kubectl wrapper image
+  steps:
+  - args:
+    - -c
+    - |
+      SECRET_DIR=/run/secrets/kubernetes.io/serviceaccount
+      K8S_TOKEN=`cat "$SECRET_DIR/token" 2>/dev/null`
+      if ! test "$K8S_TOKEN"; then
+          echo Could not resolve Kubernetes Bearer Token
+          exit 1
+      fi
+
+      K8S_CMD="kubectl --token=$K8S_TOKEN --insecure-skip-tls-verify"
+      if ! $K8S_CMD describe ns $(params.namespace) >/dev/null 2>&1; then
+          if ! $K8S_CMD create ns $(params.namespace); then
+              echo failed creating namespace $(params.namespace)
+              exit 1
+          fi
+      fi
+
+      for f in $(params.assets);
+      do
+          if test -s $f; then
+              sed -i \
+                  -e 's|IMAGE_PLACEHOLDER|$(inputs.resources.image.url)|g' \
+                  -e 's|NAME_PLACEHOLDER|$(params.identifier)|g' $f
+          fi
+          if ! $K8S_CMD $(params.action) -f $f; then
+              echo failed to $(params.action) objects from $f
+              exit 1
+          fi
+      done
+
+      echo DONE
+
+      exit 0
+    command:
+    - /bin/sh
+    image: $(params.image)
+    name: kubectl
+    workingDir: /workspace/source

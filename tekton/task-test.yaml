@@ -1,0 +1,80 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: make-test
+spec:
+  description: Runs Tests from Makefile
+  results:
+  - name: output-result
+    description: some result can be emitted if someone wants to.
+  resources:
+    inputs:
+    - name: source
+      type: git
+  params:
+  - name: identifier
+    description: Kubernetes CI test identifier
+    type: string
+    default: demo
+  - name: image
+    default: busybox
+    description: Image with proper runtime to execute CI tests
+    type: string
+  - name: namespace
+    description: Kubernetes Namespace
+    type: string
+    default: demo-ci
+  - name: retry
+    description: How many times to retry
+    type: string
+    default: "10"
+  - name: wait
+    description: How long should we wait between retries
+    type: string
+    default: "60"
+  steps:
+  - args:
+    - -c
+    - |
+      if ! test -s Makefile; then
+          echo Could not find Makefile, would not know how to run tests
+          exit 1
+      elif ! grep ^test: Makefile >/dev/null; then
+          echo Could not find Makefile test rule, required running tests
+          exit 1
+      fi
+      cpt=0
+      if test "$(params.retry)" -ge 0; then
+          retry=$(params.retry)
+      else
+          retry=10
+      fi
+      if test "$(params.wait)" -ge 0; then
+          wait=$(params.wait)
+      else
+          wait=60
+      fi
+
+      while test $cpt -lt $retry
+      do
+          if ! make test \
+                  APP_HOST=$(params.identifier).$(params.namespace).svc.cluster.local \
+                  APP_PORT=8080 \
+                  APP_PROTO=http; then
+              echo FATAL
+              exit 1
+          fi
+          cpt=`expr $cpt + 1`
+          if test "$cpt" -lt "$retry"; then
+              sleep $wait
+          fi
+      done
+
+      echo DONE
+
+      exit 0
+    command:
+    - /bin/sh
+    image: $(params.image)
+    name: test
+    workingDir: /workspace/source

@@ -1,0 +1,145 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-secret
+stringData:
+  secretToken: 0123456789abcdef
+type: Opaque
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: github-pr
+spec:
+  params:
+  - name: gitbranch
+    value: $(extensions.branch_name)
+  - name: gitrevision
+    value: $(body.pull_request.head.sha)
+  - name: gitrepositoryname
+    value: $(body.repository.name)
+  - name: gitrepositoryurl
+    value: $(body.repository.clone_url)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: github-push
+spec:
+  params:
+  - name: gitbranch
+    value: $(extensions.branch_name)
+  - name: gitrevision
+    value: $(body.after)
+  - name: gitrepositoryname
+    value: $(body.repository.name)
+  - name: gitrepositoryurl
+    value: $(body.repository.clone_url)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: github-pipelinerun
+spec:
+  params:
+  - name: gitbranch
+  - name: gitrevision
+  - name: gitrepositoryname
+  - name: gitrepositoryurl
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      generateName: github-job-
+    spec:
+      params:
+      - name: identifier
+        value: "demo-$(tt.params.gitrevision)"
+      - name: cins
+        value: test-tekton
+      pipelineRef:
+        name: ci-docker-build
+      resources:
+      - name: app-git
+        resourceSpec:
+          type: git
+          params:
+          - name: revision
+            value: $(tt.params.gitrevision)
+          - name: url
+            value: $(tt.params.gitrepositoryurl)
+      - name: ci-image
+        resourceSpec:
+          type: image
+          params:
+          - name: url
+            value: registry.registry.svc.cluster.local:5000/ci/$(tt.params.gitrepositoryname):$(tt.params.gitrevision)
+      - name: target-image
+        resourceSpec:
+          type: image
+          params:
+          - name: url
+            value: registry.registry.svc.cluster.local:5000/ci/$(tt.params.gitrepositoryname):$(tt.params.gitbranch)
+      serviceAccountName: test-tkn
+      timeout: 2h0m0s
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: github-listener
+spec:
+  serviceAccountName: tkn-triggers
+  triggers:
+  - name: github-pr-listener
+    interceptors:
+    - name: GitHub PR payload check
+      github:
+        secretRef:
+          secretName: github-secret
+          secretKey: secretToken
+        eventTypes:
+        - pull_request
+    - name: Only when PRs are opened
+      ref:
+        name: cel
+      params:
+      - name: filter
+        value: "body.action in ['opened', 'reopened']"
+    - name: CEL extracts branch name
+      ref:
+        name: cel
+      params:
+      - name: overlays
+        value:
+        - key: truncated_sha
+          expression: "body.pull_request.head.sha.truncate(7)"
+        - key: branch_name
+          expression: "body.ref.split('/')[2]"
+    bindings:
+    - ref: github-pr
+    template:
+      ref: github-pipelinerun
+  - name: github-push-listener
+    interceptors:
+    - name: GitHub push payload check
+      github:
+        secretRef:
+          secretName: github-secret
+          secretKey: secretToken
+        eventTypes:
+        - push
+    - name: CEL extracts branch name
+      ref:
+        name: cel
+      params:
+      - name: overlays
+        value:
+        - key: truncated_sha
+          expression: "body.after.truncate(7)"
+        - key: branch_name
+          expression: "body.ref.split('/')[2]"
+    bindings:
+    - ref: github-push
+    template:
+      ref: github-pipelinerun

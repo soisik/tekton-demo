@@ -1,0 +1,114 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ci-docker-build
+spec:
+  params:
+  - default: demo
+    description: CI Assets Unique ID
+    name: identifier
+    type: string
+  - default: demo-ci
+    description: Sets CI Namespace
+    name: cins
+    type: string
+  resources:
+  - name: app-git
+    type: git
+  - name: ci-image
+    type: image
+  - name: target-image
+    type: image
+  tasks:
+  - name: build
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    resources:
+      inputs:
+      - name: source
+        resource: app-git
+      outputs:
+      - name: image
+        resource: ci-image
+    taskRef:
+      name: buildah
+  - name: codescan
+    resources:
+      inputs:
+      - name: source
+        resource: app-git
+    taskRef:
+      name: trufflehog
+  - name: deploy
+    params:
+    - name: action
+      value: create
+    - name: identifier
+      value: $(params.identifier)
+    - name: namespace
+      value: $(params.cins)
+    resources:
+      inputs:
+      - name: source
+        resource: app-git
+      - name: image
+        resource: ci-image
+    runAfter:
+    - build
+    taskRef:
+      name: deploy
+  - name: imagescan
+    resources:
+      inputs:
+      - name: image
+        resource: ci-image
+    runAfter:
+    - build
+    taskRef:
+      name: trivy
+  - name: test
+    params:
+    - name: identifier
+      value: $(params.identifier)
+    - name: namespace
+      value: $(params.cins)
+    resources:
+      inputs:
+      - name: source
+        resource: app-git
+    runAfter:
+    - deploy
+    taskRef:
+      name: make-test
+  - name: retag
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    resources:
+      inputs:
+      - name: srcimage
+        resource: ci-image
+      - name: dstimage
+        resource: target-image
+    runAfter:
+    - test
+    taskRef:
+      name: retag
+  finally:
+  - name: teardown
+    params:
+    - name: action
+      value: delete
+    - name: identifier
+      value: $(params.identifier)
+    - name: namespace
+      value: $(params.cins)
+    resources:
+      inputs:
+      - name: source
+        resource: app-git
+      - name: image
+        resource: ci-image
+    taskRef:
+      name: deploy

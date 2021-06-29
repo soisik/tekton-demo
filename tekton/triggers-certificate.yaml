@@ -1,0 +1,19 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: my-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tekton-triggers
+spec:
+  dnsNames:
+  - github-ci-el.example.com
+  - el-github-listener.test-tekton.svc.cluster.local
+  secretName: tekton-triggers-tls
+  issuerRef:
+    name: my-selfsigned-issuer

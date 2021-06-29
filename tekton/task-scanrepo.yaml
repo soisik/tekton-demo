@@ -1,0 +1,43 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: trufflehog
+spec:
+  resources:
+    inputs:
+    - name: source
+      type: git
+  steps:
+  - args:
+    - -c
+    - |
+      REPO_ADDRESS=$(git remote -v | awk '{print $2}' | sed 's|^git@\([^:]*\):\(.*\)|https://\1/\2|')
+      echo "==== Scanning $REPO_ADDRESS ===="
+      trufflehog file://$(pwd) >/tmp/found 2>&1
+      echo "==== Done scanning - parsing output ===="
+      countCRITICAL=$(grep '\[91m' /tmp/found | awk 'END{print NR}')
+      countWARNING=$(grep '\[93m' /tmp/found | awk 'END{print NR}')
+      echo "==== Scan Output ===="
+      cat /tmp/found
+      rm -f /tmp/found
+      if ! test "$countCRITICAL" = 0; then
+          score=CRITICAL
+      elif ! test "$countHIGH" = 0; then
+          score=WARNING
+      else
+          score=OK
+      fi
+      echo =============================================
+      echo =============================================
+      echo =============================================
+      echo "[$score] $(resources.inputs.source.url)"
+      echo ""
+      echo " * critical: $countCRITICAL"
+      echo " * warning: $countWARNING"
+    command:
+    - /bin/sh
+    image: docker.io/dxa4481/trufflehog:latest
+    name: scan
+    securityContext:
+      privileged: true
+    workingDir: /workspace/source

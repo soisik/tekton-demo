@@ -1,0 +1,43 @@
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: test-git
+spec:
+  type: git
+  params:
+  - name: url
+    value: https://github.com/faust64/docker-nexus.git
+  - name: revision
+    value: master
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: test-image
+spec:
+  type: image
+  params:
+  - name: url
+    value: registry.registry.svc.cluster.local:5000/test-tekton/nexus:master
+---
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: test-buildah
+spec:
+  params:
+  - name: TLSVERIFY
+    value: "false"
+  resources:
+    inputs:
+    - name: source
+      resourceRef:
+        name: test-git
+    outputs:
+    - name: image
+      resourceRef:
+        name: test-image
+  serviceAccountName: test-tkn
+  taskRef:
+    name: buildah
