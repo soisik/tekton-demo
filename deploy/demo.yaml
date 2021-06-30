@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: NAME_PLACEHOLDER
+  name: demo-devel
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: NAME_PLACEHOLDER
+      name: demo-devel
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        name: NAME_PLACEHOLDER
+        name: demo-devel
     spec:
       containers:
-      - image: IMAGE_PLACEHOLDER
+      - image: registry.registry.svc.cluster.local:5000/test-tekton/tekton-demo:master
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -32,10 +32,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: NAME_PLACEHOLDER
+  name: demo-devel
 spec:
   ports:
   - name: http
     port: 8080
   selector:
-    name: NAME_PLACEHOLDER
+    name: demo-devel
