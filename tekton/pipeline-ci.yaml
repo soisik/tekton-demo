@@ -96,6 +96,21 @@ spec:
     - test
     taskRef:
       name: retag
+  - name: sign
+    params:
+    - name: IMAGE_DIGEST
+      value: "$(tasks.build.results.IMAGE_DIGEST)"
+    resources:
+      inputs:
+      - name: image
+        resource: target-image
+    runAfter:
+    - retag
+    taskRef:
+      name: cosign
+    workspaces:
+    - name: sigsecret
+      workspace: sigsecret
   finally:
   - name: teardown
     params:
@@ -113,3 +128,6 @@ spec:
         resource: ci-image
     taskRef:
       name: kubectl
+  workspaces:
+  - name: sigsecret
+    optional: true

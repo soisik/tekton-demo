@@ -7,7 +7,7 @@ Demo Tekton capabilities building, deploying, testing, ... container images.
 ## Requirements
 
 - your own fork of this repository
-- a working Docker registry
+- a working Docker registry (WARNING: samples would not handle registry authentication!)
 - k8s nodes able to pull images from that registry
 - cert-manager operator (generating certificate for Tekton EventListener Ingress / not mandatory, could be done in many different ways ...)
 
@@ -37,6 +37,8 @@ $ kubectl apply -f https://github.com/tektoncd/chains/releases/download/v0.2.0/r
   of your container images registry. it is assumed your kubernetes nodes would
   be able to pull images from it, without authenticating. and that Tekton jobs
   may push images, without authenticating.
+- generate your own key pair (`cosign generate-key-pair`) then paste your
+  passphrase, public and private keys into `tekton/secret-cosign.yaml`.
 
 ## Install Assets
 
@@ -52,6 +54,8 @@ $ kubectl apply -n test-tekton -f tekton/task-test.yaml
 $ kubectl apply -n test-tekton -f tekton/task-retag.yaml
 $ kubectl apply -n test-tekton -f tekton/task-scanimage.yaml
 $ kubectl apply -n test-tekton -f tekton/task-scanrepo.yaml
+$ kubectl apply -n test-tekton -f tekton/task-sign.yaml
+$ kubectl apply -n test-tekton -f tekton/secret-cosign.yaml
 $ kubectl apply -n test-tekton -f tekton/pipeline-ci.yaml
 $ kubectl apply -n test-tekton -f tekton/triggers-certificate.yaml
 $ kubectl apply -n test-tekton -f tekton/triggers-github.yaml
@@ -84,6 +88,7 @@ build-pipeline-6wnb8-codescan-wskc7-pod-5bwk8                    0/2     Complet
 build-pipeline-6wnb8-deploy-pz9gq-pod-sjpnw                      0/2     Completed     0          77s
 build-pipeline-6wnb8-imagescan-vf5zr-pod-cb2w5                   0/1     Completed     0          77s
 build-pipeline-6wnb8-retag-4r6cz-pod-f8zft                       0/3     Completed     0          36s
+build-pipeline-6wnb8-sign-9f8gn-pod-n9b5q                        0/1     Completed     0          26s
 build-pipeline-6wnb8-teardown-ccr4t-pod-spxds                    0/2     Completed     0          21s
 build-pipeline-6wnb8-test-nnp6p-pod-vv5px                        0/2     Completed     0          52s
 demo-151d066ee4cdfa1eabb527d09e2e112317de7acf-5984487669-tjsnh   0/1     Terminating   0          55s
@@ -120,3 +125,12 @@ scan-image jobs pod.
 We could include some additional tasks sample, building binaries and pushing
 them to some artifactory (eg: Nexus, jFrog Artifactory, ...). While give an
 example of building container images based on such assets (?)
+
+We may implement continuous deliveries for a given application, granted that
+the YAML describing its deployment is part of our repository - or eventually
+another repository - using something like ArgoCD
+
+Among various ways of verifying images authenticity in Kubernetes, we could
+look into Connaisseur - https://devopstales.github.io/home/k8s-connaisseur/.
+
+Fix Tekton Tasks authenticating against container image registries.

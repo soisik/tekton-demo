@@ -1,0 +1,46 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cosign
+spec:
+  params:
+  - name: IMAGE_DIGEST
+    description: Reference of the Image we want to Sign
+    type: string
+    default: latest
+  resources:
+    inputs:
+    - name: image
+      type: image
+  steps:
+  - args:
+    - -c
+    - |
+        set -x
+        IMAGE_ROOT=`echo $(inputs.resources.image.url) | sed 's|:[^:]*$||'`
+        if echo "$(params.IMAGE_DIGEST)" | grep ^sha >/dev/null; then
+            IMGADDR="$IMAGE_ROOT@$(params.IMAGE_DIGEST)"
+        else
+            IMGADDR="$IMAGE_ROOT:$(params.IMAGE_DIGEST)"
+        fi
+        if test -s /secret/cosign.key -a -s /secret/passphrase; then
+            if ! cat /secret/passphrase | cosign sign -key /secret/cosign.key "$IMGADDR"; then
+                echo "Failed Signing $IMGADDR"
+                exit 1
+            else
+                echo "Successfully signed $IMGADDR"
+            fi
+        else
+            echo "Did not find cosign private key and passphrase - $IMGADDR will not be signed"
+        fi
+        exit 0
+    command:
+    - /bin/sh
+    image: docker.io/wokoman/cosign:20210512
+    name: retag
+    securityContext:
+      privileged: true
+  workspaces:
+  - name: sigsecret
+    mountPath: /secret
+    optional: true

@@ -4,9 +4,6 @@ metadata:
   name: kubectl
 spec:
   description: Applies, Creates or Removes Kubernetes objects
-  results:
-  - name: output-result
-    description: some result can be emitted if someone wants to.
   resources:
     inputs:
     - name: source

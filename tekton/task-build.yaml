@@ -81,7 +81,7 @@ spec:
   - image: $(params.BUILDER_IMAGE)
     name: digest-to-results
     resources: {}
-    script: cat /workspace/source/image-digest | tee /tekton/results/IMAGE_DIGEST
+    script: cat /workspace/source/image-digest | tee $(results.IMAGE_DIGEST.path)
   volumes:
   - emptyDir: {}
     name: varlibcontainers
