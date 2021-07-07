@@ -2,12 +2,17 @@
 
 Demo Tekton capabilities building, deploying, testing, ... container images.
 
-(WIP / pending further tests)
+This repository is part of a training, that would cover Kubernetes cluster
+deployment, CSI integration, then some integrated registry deployment. At
+that stage, you need your own Kubernetes cluster running, and a registry
+allowing for anonymous pull and pushes. Configurations in this repository
+would assume that registry does not use TLS - though you may change some
+params in the main Tekton Pipeline, integrating with an https registry.
 
 ## Requirements
 
 - your own fork of this repository
-- a working Docker registry (WARNING: samples would not handle registry authentication!)
+- a working Docker registry (WARNING: samples would not handle registry authentication! default uses http, though https can be enabled)
 - k8s nodes able to pull images from that registry
 - cert-manager operator (generating certificate for Tekton EventListener Ingress / not mandatory, could be done in many different ways ...)
 
