@@ -16,7 +16,7 @@ spec:
         name: demo-devel
     spec:
       containers:
-      - image: registry.registry.svc.cluster.local:5000/test-tekton/tekton-demo:master
+      - image: registry.kube-system.svc.cluster.local:5000/test-tekton/tekton-demo:master
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
